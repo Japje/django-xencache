@@ -1,6 +1,7 @@
 from urlparse import urlparse
 import XenAPI
 import pprint
+from device.models import Pool
 from models import *
 
 pp = pprint.PrettyPrinter(depth=6)
@@ -21,8 +22,12 @@ def create_session(host, username, password):
     return session
 
 
-def get_networks(session):
-    data = session.xenapi.network.get_all_records()
+def xapi_call(xapi_class, xapi_call, session):
+    call = getattr(session.xenapi, xapi_class + '.' + xapi_call)
+    try:
+        data = call()
+    except:
+        raise Exception("Method %s.%s not implemented" % (xapi_class, xapi_call))
     return data
 
 
@@ -60,11 +65,6 @@ def _update_network(ref, data):
         )
     except Exception, e:
         raise Exception("Could not update XenCacheNetwork object" + str(e))
-
-
-def get_srs(session):
-    data = session.xenapi.SR.get_all_records()
-    return data
 
 
 def save_sr(session, ref, sr):
@@ -111,11 +111,6 @@ def _update_sr(ref, data):
         )
     except Exception, e:
         raise Exception("Could not update XenCacheSR object" + str(e))
-
-
-def get_hosts(session):
-    data = session.xenapi.host.get_all_records()
-    return data
 
 
 def save_host(session, ref, host):
@@ -173,11 +168,6 @@ def _update_host(session, ref, data):
         raise Exception("Could not update XenCacheHost object" + str(e))
 
 
-def get_vdis(session):
-    data = session.xenapi.VDI.get_all_records()
-    return data
-
-
 def save_vdi(session, ref, vdi):
     if not XenCacheVDI.objects.filter(opaqueref=ref):
         _create_new_vdi(ref, vdi)
@@ -228,11 +218,6 @@ def _update_vdi(ref, data):
         )
     except Exception, e:
         raise Exception("Could not update XenCacheVDI object" + str(e))
-
-
-def get_pifs(session):
-    data = session.xenapi.PIF.get_all_records()
-    return data
 
 
 def save_pif(session, ref, pif):
@@ -291,11 +276,6 @@ def _update_pif(ref, data):
         )
     except Exception, e:
         raise Exception("Could not update XenCacheVDI object" + str(e))
-
-
-def get_vms(session):
-    data = session.xenapi.VM.get_all_records()
-    return data
 
 
 def save_vm(session, ref, vm):
@@ -369,11 +349,6 @@ def _update_vm(ref, data):
         raise Exception("Could not update XenCacheVM object" + str(e))
 
 
-def get_vifs(session):
-    data = session.xenapi.VIF.get_all_records()
-    return data
-
-
 def save_vif(session, ref, vif):
     if not XenCacheVIF.objects.filter(opaqueref=ref):
         _create_new_vif(ref, vif)
@@ -417,11 +392,6 @@ def _update_vif(ref, data):
         )
     except Exception, e:
         raise Exception("Could not update XenCacheVIF object" + str(e))
-
-
-def get_vbds(session):
-    data = session.xenapi.VBD.get_all_records()
-    return data
 
 
 def save_vbd(session, ref, vbd):
@@ -480,11 +450,6 @@ def _update_vbd(ref, data):
         raise Exception("Could not update XenCacheVBD object" + str(e))
 
 
-def get_pbds(session):
-    data = session.xenapi.PBD.get_all_records()
-    return data
-
-
 def save_pbd(session, ref, pbd):
     if not XenCachePBD.objects.filter(opaqueref=ref):
         _create_new_pbd(ref, pbd)
@@ -523,11 +488,6 @@ def _update_pbd(ref, data):
         )
     except Exception, e:
         raise Exception("Could not update XenCacheVBD object" + str(e))
-
-
-def get_pool(session):
-    data = session.xenapi.pool.get_all_records()
-    return data
 
 
 def save_pool(session, ref, pool):
@@ -584,51 +544,51 @@ def fetch_data():
         session = create_session(master.fqdn, pool.username, pool.password)
 
         # save/update Networks
-        networks = get_networks(session)
+        networks = xapi_call('network', 'get_all_records', session)
         for network in networks:
             save_network(session, network, networks[network])
 
         # save/update Storage Repositories
-        srs = get_srs(session)
+        srs = xapi_call('SR', 'get_all_records', session)
         for sr in srs:
             save_sr(session, sr, srs[sr])
 
         # save/update Hosts
-        hosts = get_hosts(session)
+        hosts = xapi_call('host', 'get_all_records', session)
         for host in hosts:
             save_host(session, host, hosts[host])
 
         # save/update Virtual Disk Images
-        vdis = get_vdis(session)
+        vdis = xapi_call('VDI', 'get_all_records', session)
         for vdi in vdis:
             save_vdi(session, vdi, vdis[vdi])
 
         # save/update Physical InterFaces
-        pifs = get_pifs(session)
+        pifs = xapi_call('PIF', 'get_all_records', session)
         for pif in pifs:
             save_pif(session, pif, pifs[pif])
 
         # save/update Virtual Machines
-        vms = get_vms(session)
+        vms = xapi_call('VM', 'get_all_records', session)
         for vm in vms:
             save_vm(session, vm, vms[vm])
 
         # save/update Virtual InterFaces
-        vifs = get_vifs(session)
+        vifs = xapi_call('VIF', 'get_all_records', session)
         for vif in vifs:
             save_vif(session, vif, vifs[vif])
 
         # save/update Virtual Block Devices
-        vbds = get_vbds(session)
+        vbds = xapi_call('VBD', 'get_all_records', session)
         for vbd in vbds:
             save_vbd(session, vbd, vbds[vbd])
 
         # save/update Virtual Block Devices
-        pbds = get_pbds(session)
+        pbds = xapi_call('PBD', 'get_all_records', session)
         for pbd in pbds:
             save_pbd(session, pbd, pbds[pbd])
 
         # save/update Pool information
-        pools = get_pool(session)
+        pools = xapi_call('pool', 'get_all_records', session)
         for pool in pools:
             save_pool(session, pool, pools[pool])
